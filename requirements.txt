@@ -5,3 +5,4 @@ python-multipart
 pymysql
 itsdangerous
 python-dotenv
+stripe>=17,<18

@@ -3,4 +3,7 @@ __pycache__/
 .venv/
 .env
 schema.sql
+migrations/
+setup.md
+STRIPE_INTEGRATION_TODO.md
 

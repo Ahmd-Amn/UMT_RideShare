@@ -1,1 +1,20 @@
-{% extends 'base.html' %}{% block title %}Bookings · UMT RideShare{% endblock %}{% block content %}<section class="section-pad"><div class="container"><p class="eyebrow">YOUR PLANS</p><h1>Bookings.</h1><p>Seats you have reserved.</p><div class="row g-3 mt-3">{% for booking in bookings %}<div class="col-md-6"><article class="ride-card"><span class="item-meta">{{ booking.date }} · {{ booking.pickup_time }} · {% if booking.status == 1 %}Reserved{% else %}Cancelled{% endif %}</span><h2 class="h4">{{ booking.pickup_address }} → {{ booking.dropoff_address }}</h2><p>Driver: {{ booking.driver_name }}</p><div class="d-flex justify-content-between align-items-center"><strong>RM {{ '%.2f'|format(booking.price) }}</strong>{% if booking.status == 1 %}<form action="/bookings/{{ booking.id }}/cancel" method="post" data-confirm="Cancel this booking?"><button class="btn btn-outline-danger btn-sm" type="submit">Cancel booking</button></form>{% endif %}</div></article></div>{% else %}<div class="col-12"><p class="empty">No bookings yet.</p><a class="btn btn-dark" href="/book">Find a ride</a></div>{% endfor %}</div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Bookings · UMT RideShare{% endblock %}
+{% block content %}
+<section class="section-pad"><div class="container">
+  <p class="eyebrow">YOUR PLANS</p><h1>Bookings.</h1><p>Seats you have reserved.</p>
+  {% if payment_notice == 'returned' %}<div class="alert alert-info" role="status">Payment is being confirmed. Your booking will update shortly.</div>{% elif payment_notice == 'cancelled' %}<div class="alert alert-info" role="status">Checkout was closed. Your seat remains held until you resume or cancel the payment.</div>{% endif %}
+  <div class="row g-3 mt-3">{% for booking in bookings %}
+    <div class="col-md-6"><article class="ride-card">
+      <span class="item-meta">{{ booking.date }} · {{ booking.pickup_time }} · {% if booking.status == 2 %}Payment pending{% elif booking.status == 1 %}Reserved{% else %}Cancelled{% endif %}</span>
+      <h2 class="h4 mt-3">{{ booking.pickup_address }} → {{ booking.dropoff_address }}</h2>
+      <p class="mb-2">Driver: {{ booking.driver_name }}</p>
+      <p class="mb-3">{% if booking.status == 2 %}Waiting for {{ 'card' if booking.payment_method == 'card' else 'online banking' }} payment{% elif booking.payment_status == 'paid' %}Paid online{% elif booking.payment_status == 'refund_pending' %}Refund started{% elif booking.payment_status == 'refunded' %}Refunded{% elif booking.payment_status == 'refund_failed' %}Refund failed. Contact support.{% elif booking.status == 1 and booking.payment_method == 'cash' %}Pay driver in cash{% else %}{{ booking.payment_status|capitalize }}{% endif %}</p>
+      <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap"><strong>RM {{ '%.2f'|format(booking.price) }}</strong>
+        {% if booking.status == 2 and booking.can_cancel %}<a class="btn btn-outline-dark btn-sm" href="/bookings/{{ booking.id }}/pay">Resume payment</a>{% endif %}
+        {% if booking.can_cancel %}<form action="/bookings/{{ booking.id }}/cancel" method="post" data-confirm="Cancel this booking?{% if booking.payment_status == 'paid' %} An online refund will be started.{% endif %}"><button class="btn btn-outline-danger btn-sm" type="submit">Cancel booking</button></form>{% endif %}
+      </div>
+    </article></div>
+  {% else %}<div class="col-12"><p class="empty">No bookings yet. Add one to plan your next trip.</p><a class="btn btn-dark" href="/book">Find a ride</a></div>{% endfor %}</div>
+</div></section>
+{% endblock %}
