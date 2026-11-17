@@ -1,6 +1,8 @@
 import hashlib
 import hmac
+import logging
 import os
+import re
 import secrets
 from contextlib import contextmanager
 from datetime import date, time
@@ -17,6 +19,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 
 ROOT = Path(__file__).resolve().parent
+logger = logging.getLogger(__name__)
 load_dotenv(ROOT.parent / ".env")
 app = FastAPI(title="UMT RideShare")
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", secrets.token_hex(32)), same_site="lax")
@@ -30,8 +33,9 @@ def db():
     if not name:
         raise HTTPException(503, "Database is not configured yet. Set MYSQL_DATABASE and MySQL credentials.")
     try:
-        connection = pymysql.connect(host=os.getenv("MYSQL_HOST", "localhost"), port=int(os.getenv("MYSQL_PORT", "3306")), user=os.getenv("MYSQL_USER", "root"), password=os.getenv("MYSQL_PASSWORD", ""), database=name, cursorclass=pymysql.cursors.DictCursor, autocommit=False)
+        connection = pymysql.connect(host=os.getenv("MYSQL_HOST", "localhost"), port=int(os.getenv("MYSQL_PORT", "3306")), user=os.getenv("MYSQL_USER", "root"), password=os.getenv("MYSQL_PASSWORD", ""), database=name, cursorclass=pymysql.cursors.DictCursor, autocommit=False, connect_timeout=5)
     except pymysql.MySQLError as exc:
+        logger.error("MySQL connection failed: %s", exc)
         raise HTTPException(503, "Database connection is unavailable.") from exc
     try:
         yield connection
@@ -76,8 +80,8 @@ def password_ok(password, saved):
         return hmac.compare_digest(password, saved or "")
 
 
-def page(request, name, **context):
-    return templates.TemplateResponse(request, name, {"user_id": request.session.get("user_id"), "username": request.session.get("username"), **context})
+def page(request, name, *, status_code=200, **context):
+    return templates.TemplateResponse(request, name, {"user_id": request.session.get("user_id"), "username": request.session.get("username"), **context}, status_code=status_code)
 
 
 def uid(request):
@@ -102,13 +106,34 @@ def register_page(request: Request):
 
 
 @app.post("/register")
-def register(request: Request, name: str = Form(...), email: str = Form(...), phone: str = Form(...), username: str = Form(...), password: str = Form(...), confirm_password: str = Form(...)):
-    if len(password) < 8 or password != confirm_password:
-        return page(request, "register.html", error="Passwords must match and be at least 8 characters.")
-    with db() as conn:
-        if one(conn, "SELECT id FROM users WHERE username=%s OR email=%s", (username, email)):
-            return page(request, "register.html", error="Username or email already exists.")
-        execute(conn, "INSERT INTO users (name,email,phone,username,password) VALUES (%s,%s,%s,%s,%s)", (name, email, phone, username, password_hash(password)))
+def register(request: Request, name: str = Form(""), email: str = Form(""), phone: str = Form(""), username: str = Form(""), password: str = Form(""), confirm_password: str = Form("")):
+    values = {"name": name.strip(), "email": email.strip(), "phone": phone.strip(), "username": username.strip(), "password": password, "confirm_password": confirm_password}
+    errors = {}
+    for field, label, limit in (("name", "Full name", 150), ("email", "Email", 255), ("phone", "Phone", 40), ("username", "Username", 100)):
+        if not values[field]:
+            errors[field] = f"{label} is required."
+        elif len(values[field]) > limit:
+            errors[field] = f"{label} must be {limit} characters or fewer."
+    if values["email"] and not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", values["email"]):
+        errors["email"] = "Enter a valid email address."
+    if len(password) < 8:
+        errors["password"] = "Use at least 8 characters."
+    if password != confirm_password:
+        errors["confirm_password"] = "Passwords do not match."
+    if errors:
+        return page(request, "register.html", values=values, errors=errors, status_code=400)
+    try:
+        with db() as conn:
+            existing = many(conn, "SELECT username,email FROM users WHERE username=%s OR email=%s", (values["username"], values["email"]))
+            if any(row["username"] == values["username"] for row in existing):
+                errors["username"] = "This username is already taken."
+            if any(row["email"] == values["email"] for row in existing):
+                errors["email"] = "This email is already registered."
+            if errors:
+                return page(request, "register.html", values=values, errors=errors, status_code=400)
+            execute(conn, "INSERT INTO users (name,email,phone,username,password) VALUES (%s,%s,%s,%s,%s)", (values["name"], values["email"], values["phone"], values["username"], password_hash(password)))
+    except pymysql.err.IntegrityError:
+        return page(request, "register.html", values=values, errors={"form": "Username or email is already registered. Please check both fields."}, status_code=400)
     return redirect("/?registered=1")
 
 
