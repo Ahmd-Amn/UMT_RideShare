@@ -1,6 +1,7 @@
 from app.main import password_hash, password_ok
 from app import main
 from starlette.requests import Request
+import ssl
 
 
 def test_password_hash_and_legacy_login():
@@ -30,3 +31,22 @@ def test_registration_keeps_values_and_marks_errors(monkeypatch):
     response = main.register(request, "A name", "person@example.com", "123", "driver", "password123", "password123")
     assert response.status_code == 400
     assert response.context["errors"]["username"] == "This username is already taken."
+
+
+def test_hosted_mysql_uses_verified_tls(monkeypatch):
+    class Connection:
+        def commit(self):
+            pass
+
+        def close(self):
+            pass
+
+    options = {}
+    monkeypatch.setenv("MYSQL_DATABASE", "UMTRideShare")
+    monkeypatch.setenv("MYSQL_SSL", "1")
+    monkeypatch.setattr(main.pymysql, "connect", lambda **kwargs: options.update(kwargs) or Connection())
+    with main.db():
+        pass
+    assert isinstance(options["ssl"], ssl.SSLContext)
+    assert options["ssl"].verify_mode == ssl.CERT_REQUIRED
+    assert options["ssl"].check_hostname

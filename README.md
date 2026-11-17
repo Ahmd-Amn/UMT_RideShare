@@ -40,3 +40,5 @@ New accounts use hashed passwords. The app still accepts plaintext passwords fro
 ## Deploying on Vercel
 
 Set each `.env` key separately in Vercel's project Environment Variables for the deployment environment. `MYSQL_HOST` must be a hostname or address that Vercel can reach; `localhost` only works when MySQL runs on the same machine as the app. A MySQL server on your laptop will need to be moved to an accessible database host before the deployed app can use it. Redeploy after changing Vercel environment variables. If the app returns a database connection error, check the deployment's runtime logs for the MySQL error code; the response shown to visitors intentionally omits connection details.
+
+For a hosted database that requires TLS, set `MYSQL_SSL=1` in Vercel as well. The app then verifies the server certificate using the system trust store. TiDB Cloud Starter is a free MySQL-compatible option that requires TLS; test its compatibility with the app before using it for real rides.

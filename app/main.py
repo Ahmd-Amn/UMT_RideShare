@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import secrets
+import ssl
 from contextlib import contextmanager
 from datetime import date, time
 from decimal import Decimal
@@ -33,7 +34,7 @@ def db():
     if not name:
         raise HTTPException(503, "Database is not configured yet. Set MYSQL_DATABASE and MySQL credentials.")
     try:
-        connection = pymysql.connect(host=os.getenv("MYSQL_HOST", "localhost"), port=int(os.getenv("MYSQL_PORT", "3306")), user=os.getenv("MYSQL_USER", "root"), password=os.getenv("MYSQL_PASSWORD", ""), database=name, cursorclass=pymysql.cursors.DictCursor, autocommit=False, connect_timeout=5)
+        connection = pymysql.connect(host=os.getenv("MYSQL_HOST", "localhost"), port=int(os.getenv("MYSQL_PORT", "3306")), user=os.getenv("MYSQL_USER", "root"), password=os.getenv("MYSQL_PASSWORD", ""), database=name, cursorclass=pymysql.cursors.DictCursor, autocommit=False, connect_timeout=5, ssl=ssl.create_default_context() if os.getenv("MYSQL_SSL") == "1" else None)
     except pymysql.MySQLError as exc:
         logger.error("MySQL connection failed: %s", exc)
         raise HTTPException(503, "Database connection is unavailable.") from exc
