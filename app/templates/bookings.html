@@ -7,7 +7,7 @@
   <div class="row g-3 mt-3">{% for booking in bookings %}
     <div class="col-md-6"><article class="ride-card">
       <span class="item-meta">{{ booking.date }} · {{ booking.pickup_time }} · {% if booking.status == 2 %}Payment pending{% elif booking.status == 1 %}Reserved{% else %}Cancelled{% endif %}</span>
-      <h2 class="h4 mt-3">{{ booking.pickup_address }} → {{ booking.dropoff_address }}</h2>
+      <h2 class="h4 mt-3"><span title="{{ booking.pickup_address }}">{{ booking.pickup_address.split(',')[0]|truncate(36, True, leeway=0) }}</span> → <span title="{{ booking.dropoff_address }}">{{ booking.dropoff_address.split(',')[0]|truncate(36, True, leeway=0) }}</span></h2>
       <p class="mb-2">Driver: {{ booking.driver_name }}</p>
       <p class="mb-3">{% if booking.status == 2 %}Waiting for online payment{% elif booking.payment_status == 'paid' %}Paid online{% elif booking.payment_status == 'refund_pending' %}Refund started{% elif booking.payment_status == 'refunded' %}Refunded{% elif booking.payment_status == 'refund_failed' %}Refund failed. Contact support.{% elif booking.status == 1 and booking.payment_method == 'cash' %}Pay driver in cash{% else %}{{ booking.payment_status|capitalize }}{% endif %}</p>
       <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap"><strong>RM {{ '%.2f'|format(booking.price) }}</strong>
