@@ -364,8 +364,8 @@ def book(request: Request, pickup: str = "", dropoff: str = "", pickup_lat: floa
 
 @app.post("/book/{ride_id}")
 def reserve(request: Request, ride_id: int, pickup_address: str = Form(...), dropoff_address: str = Form(...), pickup_latitude: float = Form(...), pickup_longitude: float = Form(...), dropoff_latitude: float = Form(...), dropoff_longitude: float = Form(...), payment_method: str = Form("cash")):
-    if payment_method not in ("cash", "card", "fpx"):
-        raise HTTPException(400, "Choose cash, card, or online banking.")
+    if payment_method not in ("cash", "online", "card", "fpx"):
+        raise HTTPException(400, "Choose cash or online payment.")
     if payment_method != "cash":
         use_stripe()
     if not pickup_address.strip() or not dropoff_address.strip() or len(pickup_address) > 255 or len(dropoff_address) > 255 or not valid_point(pickup_latitude, pickup_longitude) or not valid_point(dropoff_latitude, dropoff_longitude):
@@ -392,7 +392,6 @@ def reserve(request: Request, ride_id: int, pickup_address: str = Form(...), dro
                 session = stripe.checkout.Session.create(
                     ui_mode="hosted_page",
                     mode="payment",
-                    payment_method_types=[payment_method],
                     billing_address_collection="auto",
                     phone_number_collection={"enabled": False},
                     automatic_tax={"enabled": False},

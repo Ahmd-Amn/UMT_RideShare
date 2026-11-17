@@ -6,4 +6,4 @@ Drivers can add a car, choose pickup and destination points on a map, and offer 
 
 The map uses Geoapify for place search, map tiles, and driving routes. A ride matches when the passenger's pickup and destination are near the driver's route in the right travel order.
 
-Passengers can choose cash, card, or online banking. Card and online banking payments use Stripe Checkout; cash is paid to the driver in person.
+Passengers can pay the driver in cash or use Stripe Checkout to choose an available online payment method, such as card or FPX.

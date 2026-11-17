@@ -120,7 +120,7 @@ def test_checkout_updates_booking_only_for_final_payment(monkeypatch, event_type
     assert not changes
 
 
-def test_card_booking_holds_seat_and_redirects_to_checkout(monkeypatch):
+def test_online_booking_holds_seat_and_redirects_to_checkout(monkeypatch):
     request = Request({"type": "http", "method": "POST", "path": "/book/1", "headers": [(b"host", b"test.example")], "query_string": b"", "scheme": "https", "server": ("test.example", 443), "session": {"user_id": 2, "username": "passenger"}, "app": main.app})
 
     class FakeDB:
@@ -139,10 +139,10 @@ def test_card_booking_holds_seat_and_redirects_to_checkout(monkeypatch):
     monkeypatch.setattr(main, "one", lambda conn, sql, args=(): ride if "FROM rides r" in sql else {"id": 7} if "LAST_INSERT_ID" in sql else None)
     monkeypatch.setattr(main, "execute", lambda conn, sql, args: changes.append((sql, args)))
     monkeypatch.setattr(main.stripe.checkout.Session, "create", lambda **kwargs: checkout.update(kwargs) or type("Session", (), {"id": "cs_test_7", "url": "https://checkout.stripe.com/test"})())
-    response = main.reserve(request, 1, "Pickup", "Destination", 5.4, 103.083, 5.4, 103.097, "card")
+    response = main.reserve(request, 1, "Pickup", "Destination", 5.4, 103.083, 5.4, 103.097, "online")
     assert response.status_code == 303
     assert response.headers["location"] == "https://checkout.stripe.com/test"
-    assert checkout["payment_method_types"] == ["card"]
+    assert "payment_method_types" not in checkout
     assert checkout["line_items"][0]["price_data"]["unit_amount"] == 500
     assert any("payment_status" in sql and args[-1] == "pending" for sql, args in changes)
     assert any("SET payment_id" in sql and args == ("cs_test_7", 7) for sql, args in changes)
